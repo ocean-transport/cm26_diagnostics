@@ -25,19 +25,22 @@ def load_and_combine_cm26(
         consolidated=True, use_cftime=True, inline_array=inline_array, engine="zarr"
     )
     print("Load Data")
-    mapper = filesystem.get_mapper("gs://cmip6/GFDL_CM2_6/control/surface")
-    ds_ocean = xr.open_dataset(mapper, chunks={"time": 3}, **kwargs)
+    ocean_path = "gs://cmip6/GFDL_CM2_6/control/surface"
+    ds_ocean = xr.open_dataset(ocean_path, chunks={"time": 3}, **kwargs)
+
+    ocean_boundary_path = "gs://cmip6/GFDL_CM2_6/control/ocean_boundary"
     mapper = filesystem.get_mapper("gs://cmip6/GFDL_CM2_6/control/ocean_boundary")
-    xr.open_dataset(mapper, chunks={"time": 3}, **kwargs)
+    xr.open_dataset(ocean_boundary_path, chunks={"time": 3}, **kwargs)
 
     # xarray says not to do this
     # ds_atmos = xr.open_zarr('gs://cmip6/GFDL_CM2_6/control/atmos_daily.zarr', chunks={'time':1}, **kwargs) # noqa: E501
-    mapper = filesystem.get_mapper("gs://cmip6/GFDL_CM2_6/control/atmos_daily.zarr")
-    ds_atmos = xr.open_dataset(mapper, chunks={"time": 120}, **kwargs).chunk(
+    atmos_path = "gs://cmip6/GFDL_CM2_6/control/atmos_daily.zarr"
+    ds_atmos = xr.open_dataset(atmos_path, chunks={"time": 120}, **kwargs).chunk(
         {"time": 3}
     )
-    mapper = filesystem.get_mapper("gs://cmip6/GFDL_CM2_6/grid")
-    ds_oc_grid = xr.open_dataset(mapper, chunks={}, **kwargs)
+
+    oc_grid_path = "gs://cmip6/GFDL_CM2_6/grid"
+    ds_oc_grid = xr.open_dataset(oc_grid_path, chunks={}, **kwargs)
     # ds_oc_grid  = cat["GFDL_CM2_6_grid"].to_dask()
 
     print("Align in time")
@@ -80,8 +83,7 @@ def load_and_combine_cm26(
     # Load precalculated regridder weights from group bucket
     # TODO: Maybe this should be an input argument?
     path = "gs://leap-persistent/jbusecke/scale-aware-air-sea/regridding_weights/CM26_atmos2ocean.zarr"  # noqa: E501
-    mapper = filesystem.get_mapper(path)
-    ds_regridder = xr.open_zarr(mapper).load()
+    ds_regridder = xr.open_zarr(path).load()
     regridder = xe.Regridder(
         ds_atmos.olr.to_dataset(name="dummy")
         .isel(time=0)
@@ -147,11 +149,11 @@ def preprocess_data():
     kwargs = dict(consolidated=True, use_cftime=True, engine="zarr")
     print("Load Data")
     ocean_path = "gs://cmip6/GFDL_CM2_6/control/surface"
-    ds_ocean = xr.open_dataset(fs.get_mapper(ocean_path), chunks={"time": 3}, **kwargs)
+    ds_ocean = xr.open_dataset(ocean_path, chunks={"time": 3}, **kwargs)
     ocean_boundary_path = "gs://cmip6/GFDL_CM2_6/control/ocean_boundary"
-    ds_ocean_boundary = xr.open_dataset(fs.get_mapper(ocean_boundary_path), chunks={"time": 3}, **kwargs)
+    ds_ocean_boundary = xr.open_dataset(ocean_boundary_path, chunks={"time": 3}, **kwargs)
     grid_path = "gs://cmip6/GFDL_CM2_6/grid"
-    ds_ocean_grid = xr.open_dataset(fs.get_mapper(grid_path), chunks={}, **kwargs)
+    ds_ocean_grid = xr.open_dataset(grid_path, chunks={}, **kwargs)
     
     # combine all dataset on the ocean grid together
     ds_ocean = xr.merge([ds_ocean_grid, ds_ocean, ds_ocean_boundary], compat='override')
@@ -181,7 +183,7 @@ def preprocess_data():
 
     # Loading atmos data
     atmos_path = "gs://cmip6/GFDL_CM2_6/control/atmos_daily.zarr"
-    ds_atmos = xr.open_dataset(fs.get_mapper(atmos_path), chunks={"time": 120}, **kwargs).chunk(
+    ds_atmos = xr.open_dataset(atmos_path, chunks={"time": 120}, **kwargs).chunk(
         {"time": 3}
     )
     # rename the atmos data coordinates only to CESM conventions
